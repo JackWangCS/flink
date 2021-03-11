@@ -23,6 +23,7 @@ import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.SecurityOptions;
 import org.apache.flink.runtime.clusterframework.BootstrapTools;
 import org.apache.flink.runtime.clusterframework.ContaineredTaskManagerParameters;
+import org.apache.flink.runtime.security.delegationtokens.HadoopDelegationTokenConfiguration;
 import org.apache.flink.runtime.util.HadoopUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.StringUtils;
