@@ -64,6 +64,9 @@ public class CheckpointConfig implements java.io.Serializable {
 
     public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
+    /** The default max gap from last successful checkpoint */
+    public static final long DEFAULT_MAX_CHECKPOINT_GAP = -1;
+
     // ------------------------------------------------------------------------
 
     /** Checkpointing mode (exactly-once vs. at-least-once). */
@@ -125,6 +128,9 @@ public class CheckpointConfig implements java.io.Serializable {
      */
     private transient CheckpointStorage storage;
 
+    /** The max allowed time gap from the last successful checkpoint. */
+    private long maxCheckpointGap = DEFAULT_MAX_CHECKPOINT_GAP;
+
     /**
      * Creates a deep copy of the provided {@link CheckpointConfig}.
      *
@@ -136,6 +142,7 @@ public class CheckpointConfig implements java.io.Serializable {
         this.checkpointInterval = checkpointConfig.checkpointInterval;
         this.checkpointingMode = checkpointConfig.checkpointingMode;
         this.checkpointTimeout = checkpointConfig.checkpointTimeout;
+        this.maxCheckpointGap = checkpointConfig.maxCheckpointGap;
         this.maxConcurrentCheckpoints = checkpointConfig.maxConcurrentCheckpoints;
         this.minPauseBetweenCheckpoints = checkpointConfig.minPauseBetweenCheckpoints;
         this.preferCheckpointForRecovery = checkpointConfig.preferCheckpointForRecovery;
@@ -667,6 +674,14 @@ public class CheckpointConfig implements java.io.Serializable {
         return this.storage;
     }
 
+    public long getMaxCheckpointGap() {
+        return this.maxCheckpointGap;
+    }
+
+    public void setMaxCheckpointGap(long maxGap) {
+        this.maxCheckpointGap = maxGap;
+    }
+
     /** Cleanup behaviour for externalized checkpoints when the job is cancelled. */
     @PublicEvolving
     public enum ExternalizedCheckpointCleanup {
@@ -754,5 +769,8 @@ public class CheckpointConfig implements java.io.Serializable {
         configuration
                 .getOptional(ExecutionCheckpointingOptions.FORCE_UNALIGNED)
                 .ifPresent(this::setForceUnalignedCheckpoints);
+        configuration
+                .getOptional(ExecutionCheckpointingOptions.MAX_CHECKPOINT_GAP)
+                .ifPresent(t -> setMaxCheckpointGap(t.toMillis()));
     }
 }

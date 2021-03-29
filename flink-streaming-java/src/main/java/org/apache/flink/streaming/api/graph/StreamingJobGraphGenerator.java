@@ -1151,8 +1151,10 @@ public class StreamingJobGraphGenerator {
                 groupOperatorIds.stream()
                         .flatMap(
                                 (oid) ->
-                                        operatorScopeManagedMemoryUseCaseWeightsRetriever.apply(oid)
-                                                .entrySet().stream())
+                                        operatorScopeManagedMemoryUseCaseWeightsRetriever
+                                                .apply(oid)
+                                                .entrySet()
+                                                .stream())
                         .collect(
                                 Collectors.groupingBy(
                                         Map.Entry::getKey,
@@ -1320,6 +1322,7 @@ public class StreamingJobGraphGenerator {
                                         cfg.getTolerableCheckpointFailureNumber())
                                 .setUnalignedCheckpointsEnabled(cfg.isUnalignedCheckpointsEnabled())
                                 .setAlignmentTimeout(cfg.getAlignmentTimeout())
+                                .setMaxCheckpointGap(cfg.getMaxCheckpointGap())
                                 .build(),
                         serializedStateBackend,
                         serializedCheckpointStorage,

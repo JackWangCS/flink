@@ -158,6 +158,11 @@ public class CheckpointCoordinator {
      */
     private final long minPauseBetweenCheckpoints;
 
+    /** The max time(in ms) that is allowed from last successful checkpoint. */
+    private final long maxCheckpointGap;
+
+    private ScheduledFuture<?> currentCheckpointGapChecker;
+
     /**
      * The timer that handles the checkpoint timeouts and triggers periodic checkpoints. It must be
      * single-threaded. Eventually it will be replaced by main thread executor.
@@ -291,6 +296,7 @@ public class CheckpointCoordinator {
         this.baseInterval = baseInterval;
         this.checkpointTimeout = chkConfig.getCheckpointTimeout();
         this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
+        this.maxCheckpointGap = chkConfig.getMaxCheckpointGap();
         this.coordinatorsToCheckpoint =
                 Collections.unmodifiableCollection(coordinatorsToCheckpoint);
         this.pendingCheckpoints = new LinkedHashMap<>();
@@ -1251,6 +1257,9 @@ public class CheckpointCoordinator {
                 completedCheckpoint.getStateSize(),
                 completedCheckpoint.getDuration());
 
+        // Schedule a new CheckpointGapChecker and cancel the old one if it's existed
+        mayScheduleNewCheckpointGapChecker(lastCheckpointCompletionRelativeTime + maxCheckpointGap);
+
         if (LOG.isDebugEnabled()) {
             StringBuilder builder = new StringBuilder();
             builder.append("Checkpoint state: ");
@@ -1795,6 +1804,22 @@ public class CheckpointCoordinator {
         }
     }
 
+    private void mayScheduleNewCheckpointGapChecker(long nextCheckpointThreshold) {
+        if (maxCheckpointGap > 0) {
+            synchronized (lock) {
+                if (currentCheckpointGapChecker != null) {
+                    currentCheckpointGapChecker.cancel(false);
+                }
+
+                currentCheckpointGapChecker =
+                        timer.schedule(
+                                new CheckpointGapChecker(nextCheckpointThreshold),
+                                maxCheckpointGap,
+                                TimeUnit.MILLISECONDS);
+            }
+        }
+    }
+
     private long getRandomInitDelay() {
         return ThreadLocalRandom.current().nextLong(minPauseBetweenCheckpoints, baseInterval + 1L);
     }
@@ -1991,6 +2016,29 @@ public class CheckpointCoordinator {
                     abortPendingCheckpoint(
                             pendingCheckpoint,
                             new CheckpointException(CheckpointFailureReason.CHECKPOINT_EXPIRED));
+                }
+            }
+        }
+    }
+
+    private class CheckpointGapChecker implements Runnable {
+        private final long nextCheckpointTimeThreshold;
+
+        private CheckpointGapChecker(long nextCheckpointTimeThreshold) {
+            this.nextCheckpointTimeThreshold = nextCheckpointTimeThreshold;
+        }
+
+        @Override
+        public void run() {
+            synchronized (lock) {
+                if (lastCheckpointCompletionRelativeTime + 1000
+                        < nextCheckpointTimeThreshold - maxCheckpointGap) {
+                    failureManager.handleCheckpointGapExceeded(
+                            new CheckpointException(
+                                    String.format(
+                                            "No checkpoint succeeded since the last successful checkpoint time: %d and the max checkpoint gap allowed is %dms)",
+                                            lastCheckpointCompletionRelativeTime, maxCheckpointGap),
+                                    CheckpointFailureReason.MAX_CHECKPOINT_GAP_EXCEEDED));
                 }
             }
         }

@@ -47,6 +47,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     private final int tolerableCheckpointFailureNumber;
 
+    private final long maxCheckpointGap;
+
     /** Settings for what to do with checkpoints when a job finishes. */
     private final CheckpointRetentionPolicy checkpointRetentionPolicy;
 
@@ -87,7 +89,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                 isPreferCheckpointForRecovery,
                 tolerableCpFailureNumber,
                 isUnalignedCheckpoint,
-                0);
+                0,
+                -1);
     }
 
     private CheckpointCoordinatorConfiguration(
@@ -100,7 +103,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
             boolean isPreferCheckpointForRecovery,
             int tolerableCpFailureNumber,
             boolean isUnalignedCheckpointsEnabled,
-            long alignmentTimeout) {
+            long alignmentTimeout,
+            long maxCheckpointGap) {
 
         // sanity checks
         if (checkpointInterval < MINIMAL_CHECKPOINT_TIME
@@ -116,6 +120,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
         this.checkpointInterval = checkpointInterval;
         this.checkpointTimeout = checkpointTimeout;
+        this.maxCheckpointGap = maxCheckpointGap;
         this.minPauseBetweenCheckpoints = minPauseBetweenCheckpoints;
         this.maxConcurrentCheckpoints = maxConcurrentCheckpoints;
         this.checkpointRetentionPolicy = Preconditions.checkNotNull(checkpointRetentionPolicy);
@@ -164,6 +169,10 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
 
     public long getAlignmentTimeout() {
         return alignmentTimeout;
+    }
+
+    public long getMaxCheckpointGap() {
+        return maxCheckpointGap;
     }
 
     @Override
@@ -241,6 +250,7 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         private int tolerableCheckpointFailureNumber;
         private boolean isUnalignedCheckpointsEnabled;
         private long alignmentTimeout = 0;
+        private long maxCheckpointGap = -1;
 
         public CheckpointCoordinatorConfiguration build() {
             return new CheckpointCoordinatorConfiguration(
@@ -253,7 +263,8 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
                     isPreferCheckpointForRecovery,
                     tolerableCheckpointFailureNumber,
                     isUnalignedCheckpointsEnabled,
-                    alignmentTimeout);
+                    alignmentTimeout,
+                    maxCheckpointGap);
         }
 
         public CheckpointCoordinatorConfigurationBuilder setCheckpointInterval(
@@ -312,6 +323,12 @@ public class CheckpointCoordinatorConfiguration implements Serializable {
         public CheckpointCoordinatorConfigurationBuilder setAlignmentTimeout(
                 long alignmentTimeout) {
             this.alignmentTimeout = alignmentTimeout;
+            return this;
+        }
+
+        public CheckpointCoordinatorConfigurationBuilder setMaxCheckpointGap(
+                long maxCheckpointGap) {
+            this.maxCheckpointGap = maxCheckpointGap;
             return this;
         }
     }

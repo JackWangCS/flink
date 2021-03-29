@@ -196,4 +196,15 @@ public class ExecutionCheckpointingOptions {
                                     .text(
                                             "Forces unaligned checkpoints, particularly allowing them for iterative jobs.")
                                     .build());
+
+    public static final ConfigOption<Duration> MAX_CHECKPOINT_GAP =
+            ConfigOptions.key("execution.checkpointing.max-checkpoint-gap")
+                    .durationType()
+                    .noDefaultValue()
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The max allowed time gap from the last successful checkpoint, if the gap exceeds this threshold, the job will fail.")
+                                    .linebreak()
+                                    .build());
 }

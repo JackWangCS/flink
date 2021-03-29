@@ -165,6 +165,10 @@ public class CheckpointFailureManager {
         }
     }
 
+    public void handleCheckpointGapExceeded(Throwable t) {
+        failureCallback.failJob(t);
+    }
+
     private void clearCount() {
         continuousFailureCounter.set(0);
         countedCheckpointIds.clear();
