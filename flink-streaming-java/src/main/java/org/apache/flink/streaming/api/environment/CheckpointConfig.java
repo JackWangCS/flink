@@ -64,7 +64,7 @@ public class CheckpointConfig implements java.io.Serializable {
 
     public static final int UNDEFINED_TOLERABLE_CHECKPOINT_NUMBER = -1;
 
-    /** The default max gap from last successful checkpoint */
+    /** The default max gap from last successful checkpoint. */
     public static final long DEFAULT_MAX_CHECKPOINT_GAP = -1;
 
     // ------------------------------------------------------------------------

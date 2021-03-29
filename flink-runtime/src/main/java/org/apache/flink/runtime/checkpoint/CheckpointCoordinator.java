@@ -1752,6 +1752,8 @@ public class CheckpointCoordinator {
 
             cancelPeriodicTrigger();
 
+            cancelCheckpointGapChecker();
+
             final CheckpointException reason =
                     new CheckpointException(CheckpointFailureReason.CHECKPOINT_COORDINATOR_SUSPEND);
             abortPendingAndQueuedCheckpoints(reason);
@@ -1806,17 +1808,22 @@ public class CheckpointCoordinator {
 
     private void mayScheduleNewCheckpointGapChecker(long nextCheckpointThreshold) {
         if (maxCheckpointGap > 0) {
-            synchronized (lock) {
-                if (currentCheckpointGapChecker != null) {
-                    currentCheckpointGapChecker.cancel(false);
-                }
-
-                currentCheckpointGapChecker =
-                        timer.schedule(
-                                new CheckpointGapChecker(nextCheckpointThreshold),
-                                maxCheckpointGap,
-                                TimeUnit.MILLISECONDS);
+            if (currentCheckpointGapChecker != null) {
+                currentCheckpointGapChecker.cancel(false);
             }
+
+            currentCheckpointGapChecker =
+                    timer.schedule(
+                            new CheckpointGapChecker(nextCheckpointThreshold),
+                            maxCheckpointGap,
+                            TimeUnit.MILLISECONDS);
+        }
+    }
+
+    private void cancelCheckpointGapChecker() {
+        if (currentCheckpointGapChecker != null) {
+            currentCheckpointGapChecker.cancel(false);
+            currentCheckpointGapChecker = null;
         }
     }
 
