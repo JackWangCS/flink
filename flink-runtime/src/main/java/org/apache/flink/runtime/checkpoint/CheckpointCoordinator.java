@@ -200,7 +200,8 @@ public class CheckpointCoordinator {
     private volatile boolean shutdown;
 
     /** Optional tracker for checkpoint statistics. */
-    @Nullable private CheckpointStatsTracker statsTracker;
+    @Nullable
+    private CheckpointStatsTracker statsTracker;
 
     /** A factory for SharedStateRegistry objects. */
     private final SharedStateRegistryFactory sharedStateRegistryFactory;
@@ -359,8 +360,9 @@ public class CheckpointCoordinator {
      * MasterTriggerRestoreHook#getIdentifier()}).
      *
      * @param hook The hook to add.
+     *
      * @return True, if the hook was added, false if the checkpoint coordinator already contained a
-     *     hook with the same ID.
+     *         hook with the same ID.
      */
     public boolean addMasterHook(MasterTriggerRestoreHook<?> hook) {
         checkNotNull(hook);
@@ -437,10 +439,12 @@ public class CheckpointCoordinator {
      * Triggers a savepoint with the given savepoint directory as a target.
      *
      * @param targetLocation Target location for the savepoint, optional. If null, the state
-     *     backend's configured default will be used.
+     *         backend's configured default will be used.
+     *
      * @return A future to the completed checkpoint
+     *
      * @throws IllegalStateException If no savepoint directory has been specified and no default
-     *     savepoint directory has been configured
+     *         savepoint directory has been configured
      */
     public CompletableFuture<CompletedCheckpoint> triggerSavepoint(
             @Nullable final String targetLocation) {
@@ -454,10 +458,12 @@ public class CheckpointCoordinator {
      *
      * @param terminate flag indicating if the job should terminate or just suspend
      * @param targetLocation Target location for the savepoint, optional. If null, the state
-     *     backend's configured default will be used.
+     *         backend's configured default will be used.
+     *
      * @return A future to the completed checkpoint
+     *
      * @throws IllegalStateException If no savepoint directory has been specified and no default
-     *     savepoint directory has been configured
+     *         savepoint directory has been configured
      */
     public CompletableFuture<CompletedCheckpoint> triggerSynchronousSavepoint(
             final boolean terminate, @Nullable final String targetLocation) {
@@ -497,7 +503,8 @@ public class CheckpointCoordinator {
      * occurred.
      *
      * @param isPeriodic Flag indicating whether this triggered checkpoint is periodic. If this flag
-     *     is true, but the periodic scheduler is disabled, the checkpoint will be declined.
+     *         is true, but the periodic scheduler is disabled, the checkpoint will be declined.
+     *
      * @return a future to the completed checkpoint.
      */
     public CompletableFuture<CompletedCheckpoint> triggerCheckpoint(boolean isPeriodic) {
@@ -545,9 +552,9 @@ public class CheckpointCoordinator {
                                         try {
                                             CheckpointIdAndStorageLocation
                                                     checkpointIdAndStorageLocation =
-                                                            initializeCheckpoint(
-                                                                    request.props,
-                                                                    request.externalSavepointLocation);
+                                                    initializeCheckpoint(
+                                                            request.props,
+                                                            request.externalSavepointLocation);
                                             return new Tuple2<>(
                                                     plan, checkpointIdAndStorageLocation);
                                         } catch (Throwable e) {
@@ -657,7 +664,7 @@ public class CheckpointCoordinator {
                                         if (!isShutdown()) {
                                             throw new CompletionException(error);
                                         } else if (findThrowable(
-                                                        error, RejectedExecutionException.class)
+                                                error, RejectedExecutionException.class)
                                                 .isPresent()) {
                                             LOG.debug("Execution rejected during shutdown");
                                         } else {
@@ -676,6 +683,7 @@ public class CheckpointCoordinator {
      *
      * @param props checkpoint properties
      * @param externalSavepointLocation the external savepoint location, it might be null
+     *
      * @return the initialized result, checkpoint id and checkpoint location
      */
     private CheckpointIdAndStorageLocation initializeCheckpoint(
@@ -690,7 +698,7 @@ public class CheckpointCoordinator {
         CheckpointStorageLocation checkpointStorageLocation =
                 props.isSavepoint()
                         ? checkpointStorageView.initializeLocationForSavepoint(
-                                checkpointID, externalSavepointLocation)
+                        checkpointID, externalSavepointLocation)
                         : checkpointStorageView.initializeLocationForCheckpoint(checkpointID);
 
         return new CheckpointIdAndStorageLocation(checkpointID, checkpointStorageLocation);
@@ -757,6 +765,7 @@ public class CheckpointCoordinator {
      * Snapshot master hook states asynchronously.
      *
      * @param checkpoint the pending checkpoint
+     *
      * @return the future represents master hook states are finished or not
      */
     private CompletableFuture<Void> snapshotMasterState(PendingCheckpoint checkpoint) {
@@ -864,7 +873,7 @@ public class CheckpointCoordinator {
      * The trigger request is failed. NOTE, it must be invoked if trigger request is failed.
      *
      * @param checkpoint the pending checkpoint which is failed. It could be null if it's failed
-     *     prematurely without a proper initialization.
+     *         prematurely without a proper initialization.
      * @param throwable the reason of trigger failure
      */
     private void onTriggerFailure(@Nullable PendingCheckpoint checkpoint, Throwable throwable) {
@@ -1023,10 +1032,12 @@ public class CheckpointCoordinator {
      *
      * @param message Checkpoint ack from the task manager
      * @param taskManagerLocationInfo The location of the acknowledge checkpoint message's sender
+     *
      * @return Flag indicating whether the ack'd checkpoint was associated with a pending
-     *     checkpoint.
+     *         checkpoint.
+     *
      * @throws CheckpointException If the checkpoint cannot be added to the completed checkpoint
-     *     store.
+     *         store.
      */
     public boolean receiveAcknowledgeMessage(
             AcknowledgeCheckpoint message, String taskManagerLocationInfo)
@@ -1167,6 +1178,7 @@ public class CheckpointCoordinator {
      * <p>Important: This method should only be called in the checkpoint lock scope.
      *
      * @param pendingCheckpoint to complete
+     *
      * @throws CheckpointException if the completion failed
      */
     private void completePendingCheckpoint(PendingCheckpoint pendingCheckpoint)
@@ -1257,8 +1269,8 @@ public class CheckpointCoordinator {
                 completedCheckpoint.getStateSize(),
                 completedCheckpoint.getDuration());
 
-        // Schedule a new CheckpointGapChecker and cancel the old one if it's existed
-        mayScheduleNewCheckpointGapChecker(lastCheckpointCompletionRelativeTime + maxCheckpointGap);
+        // schedule a new CheckpointGapChecker and cancel the old one if it's existed
+        mayScheduleNewCheckpointGapChecker();
 
         if (LOG.isDebugEnabled()) {
             StringBuilder builder = new StringBuilder();
@@ -1365,21 +1377,23 @@ public class CheckpointCoordinator {
      * Restores the latest checkpointed state.
      *
      * @param tasks Map of job vertices to restore. State for these vertices is restored via {@link
-     *     Execution#setInitialState(JobManagerTaskRestore)}.
+     *         Execution#setInitialState(JobManagerTaskRestore)}.
      * @param errorIfNoCheckpoint Fail if no completed checkpoint is available to restore from.
      * @param allowNonRestoredState Allow checkpoint state that cannot be mapped to any job vertex
-     *     in tasks.
+     *         in tasks.
+     *
      * @return <code>true</code> if state was restored, <code>false</code> otherwise.
+     *
      * @throws IllegalStateException If the CheckpointCoordinator is shut down.
      * @throws IllegalStateException If no completed checkpoint is available and the <code>
-     *     failIfNoCheckpoint</code> flag has been set.
+     *         failIfNoCheckpoint</code> flag has been set.
      * @throws IllegalStateException If the checkpoint contains state that cannot be mapped to any
-     *     job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
-     *     been set.
+     *         job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
+     *         been set.
      * @throws IllegalStateException If the max parallelism changed for an operator that restores
-     *     state from this checkpoint.
+     *         state from this checkpoint.
      * @throws IllegalStateException If the parallelism changed for an operator that restores
-     *     <i>non-partitioned</i> state from this checkpoint.
+     *         <i>non-partitioned</i> state from this checkpoint.
      */
     @Deprecated
     public boolean restoreLatestCheckpointedState(
@@ -1404,19 +1418,21 @@ public class CheckpointCoordinator {
      * might still include all tasks.
      *
      * @param tasks Set of job vertices to restore. State for these vertices is restored via {@link
-     *     Execution#setInitialState(JobManagerTaskRestore)}.
+     *         Execution#setInitialState(JobManagerTaskRestore)}.
+     *
      * @return An {@code OptionalLong} with the checkpoint ID, if state was restored, an empty
-     *     {@code OptionalLong} otherwise.
+     *         {@code OptionalLong} otherwise.
+     *
      * @throws IllegalStateException If the CheckpointCoordinator is shut down.
      * @throws IllegalStateException If no completed checkpoint is available and the <code>
-     *     failIfNoCheckpoint</code> flag has been set.
+     *         failIfNoCheckpoint</code> flag has been set.
      * @throws IllegalStateException If the checkpoint contains state that cannot be mapped to any
-     *     job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
-     *     been set.
+     *         job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
+     *         been set.
      * @throws IllegalStateException If the max parallelism changed for an operator that restores
-     *     state from this checkpoint.
+     *         state from this checkpoint.
      * @throws IllegalStateException If the parallelism changed for an operator that restores
-     *     <i>non-partitioned</i> state from this checkpoint.
+     *         <i>non-partitioned</i> state from this checkpoint.
      */
     public OptionalLong restoreLatestCheckpointedStateToSubtasks(
             final Set<ExecutionJobVertex> tasks) throws Exception {
@@ -1440,20 +1456,22 @@ public class CheckpointCoordinator {
      * the given set of Job Vertices are restored. are restored to their latest checkpointed state.
      *
      * @param tasks Set of job vertices to restore. State for these vertices is restored via {@link
-     *     Execution#setInitialState(JobManagerTaskRestore)}.
+     *         Execution#setInitialState(JobManagerTaskRestore)}.
      * @param allowNonRestoredState Allow checkpoint state that cannot be mapped to any job vertex
-     *     in tasks.
+     *         in tasks.
+     *
      * @return <code>true</code> if state was restored, <code>false</code> otherwise.
+     *
      * @throws IllegalStateException If the CheckpointCoordinator is shut down.
      * @throws IllegalStateException If no completed checkpoint is available and the <code>
-     *     failIfNoCheckpoint</code> flag has been set.
+     *         failIfNoCheckpoint</code> flag has been set.
      * @throws IllegalStateException If the checkpoint contains state that cannot be mapped to any
-     *     job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
-     *     been set.
+     *         job vertex in <code>tasks</code> and the <code>allowNonRestoredState</code> flag has not
+     *         been set.
      * @throws IllegalStateException If the max parallelism changed for an operator that restores
-     *     state from this checkpoint.
+     *         state from this checkpoint.
      * @throws IllegalStateException If the parallelism changed for an operator that restores
-     *     <i>non-partitioned</i> state from this checkpoint.
+     *         <i>non-partitioned</i> state from this checkpoint.
      */
     public boolean restoreLatestCheckpointedStateToAll(
             final Set<ExecutionJobVertex> tasks, final boolean allowNonRestoredState)
@@ -1477,7 +1495,8 @@ public class CheckpointCoordinator {
      * and coordinators from the given set of Job Vertices are restored.
      *
      * @param tasks Set of job vertices to restore. State for these vertices is restored via {@link
-     *     Execution#setInitialState(JobManagerTaskRestore)}.
+     *         Execution#setInitialState(JobManagerTaskRestore)}.
+     *
      * @return True, if a checkpoint was found and its state was restored, false otherwise.
      */
     public boolean restoreInitialCheckpointIfPresent(final Set<ExecutionJobVertex> tasks)
@@ -1610,11 +1629,11 @@ public class CheckpointCoordinator {
      *
      * @param savepointPointer The pointer to the savepoint.
      * @param allowNonRestored True if allowing checkpoint state that cannot be mapped to any job
-     *     vertex in tasks.
+     *         vertex in tasks.
      * @param tasks Map of job vertices to restore. State for these vertices is restored via {@link
-     *     Execution#setInitialState(JobManagerTaskRestore)}.
+     *         Execution#setInitialState(JobManagerTaskRestore)}.
      * @param userClassLoader The class loader to resolve serialized classes in legacy savepoint
-     *     versions.
+     *         versions.
      */
     public boolean restoreSavepoint(
             String savepointPointer,
@@ -1705,6 +1724,11 @@ public class CheckpointCoordinator {
         synchronized (lock) {
             return requestDecider.getTriggerRequestQueue();
         }
+    }
+
+    @VisibleForTesting
+    ScheduledFuture<?> getCurrentCheckpointGapChecker() {
+        return currentCheckpointGapChecker;
     }
 
     public boolean isTriggering() {
@@ -1806,7 +1830,7 @@ public class CheckpointCoordinator {
         }
     }
 
-    private void mayScheduleNewCheckpointGapChecker(long nextCheckpointThreshold) {
+    private void mayScheduleNewCheckpointGapChecker() {
         if (maxCheckpointGap > 0) {
             if (currentCheckpointGapChecker != null) {
                 currentCheckpointGapChecker.cancel(false);
@@ -1814,9 +1838,7 @@ public class CheckpointCoordinator {
 
             currentCheckpointGapChecker =
                     timer.schedule(
-                            new CheckpointGapChecker(nextCheckpointThreshold),
-                            maxCheckpointGap,
-                            TimeUnit.MILLISECONDS);
+                            new CheckpointGapChecker(), maxCheckpointGap, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -2029,22 +2051,17 @@ public class CheckpointCoordinator {
     }
 
     private class CheckpointGapChecker implements Runnable {
-        private final long nextCheckpointTimeThreshold;
-
-        private CheckpointGapChecker(long nextCheckpointTimeThreshold) {
-            this.nextCheckpointTimeThreshold = nextCheckpointTimeThreshold;
-        }
-
         @Override
         public void run() {
             synchronized (lock) {
                 if (lastCheckpointCompletionRelativeTime + 1000
-                        < nextCheckpointTimeThreshold - maxCheckpointGap) {
+                        < clock.relativeTimeMillis() - maxCheckpointGap) {
                     failureManager.handleCheckpointGapExceeded(
                             new CheckpointException(
                                     String.format(
                                             "No checkpoint succeeded since the last successful checkpoint time: %d and the max checkpoint gap allowed is %dms)",
-                                            lastCheckpointCompletionRelativeTime, maxCheckpointGap),
+                                            lastCheckpointCompletionRelativeTime,
+                                            maxCheckpointGap),
                                     CheckpointFailureReason.MAX_CHECKPOINT_GAP_EXCEEDED));
                 }
             }
@@ -2075,7 +2092,8 @@ public class CheckpointCoordinator {
     static class CheckpointTriggerRequest {
         final long timestamp;
         final CheckpointProperties props;
-        final @Nullable String externalSavepointLocation;
+        final @Nullable
+        String externalSavepointLocation;
         final boolean isPeriodic;
         private final CompletableFuture<CompletedCheckpoint> onCompletionPromise =
                 new CompletableFuture<>();
@@ -2122,8 +2140,8 @@ public class CheckpointCoordinator {
         }
         Map<JobVertexID, Integer> vertices =
                 Stream.concat(
-                                checkpoint.getCheckpointPlan().getTasksToWaitFor().stream(),
-                                checkpoint.getCheckpointPlan().getFinishedTasks().stream())
+                        checkpoint.getCheckpointPlan().getTasksToWaitFor().stream(),
+                        checkpoint.getCheckpointPlan().getFinishedTasks().stream())
                         .map(Execution::getVertex)
                         .map(ExecutionVertex::getJobVertex)
                         .distinct()

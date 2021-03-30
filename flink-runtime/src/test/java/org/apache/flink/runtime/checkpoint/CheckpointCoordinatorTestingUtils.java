@@ -61,6 +61,8 @@ import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.clock.Clock;
+import org.apache.flink.util.clock.SystemClock;
 
 import org.junit.Assert;
 
@@ -678,6 +680,8 @@ public class CheckpointCoordinatorTestingUtils {
 
         private boolean allowCheckpointsAfterTasksFinished;
 
+        private Clock clock = SystemClock.getInstance();
+
         public CheckpointCoordinatorBuilder setCheckpointCoordinatorConfiguration(
                 CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration) {
             this.checkpointCoordinatorConfiguration = checkpointCoordinatorConfiguration;
@@ -746,6 +750,11 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setClock(Clock clock) {
+            this.clock = clock;
+            return this;
+        }
+
         public CheckpointCoordinator build() throws Exception {
             if (executionGraph == null) {
                 executionGraph =
@@ -775,7 +784,8 @@ public class CheckpointCoordinatorTestingUtils {
                     sharedStateRegistryFactory,
                     failureManager,
                     checkpointPlanCalculator,
-                    new ExecutionAttemptMappingProvider(executionGraph.getAllExecutionVertices()));
+                    new ExecutionAttemptMappingProvider(executionGraph.getAllExecutionVertices()),
+                    clock);
         }
     }
 

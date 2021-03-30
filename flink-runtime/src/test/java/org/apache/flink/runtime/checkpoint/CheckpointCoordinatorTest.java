@@ -63,6 +63,7 @@ import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLo
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.clock.ManualClock;
 import org.apache.flink.util.function.TriFunctionWithException;
 
 import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
@@ -96,9 +97,11 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_ASYNC_EXCEPTION;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_DECLINED;
 import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKPOINT_EXPIRED;
@@ -2152,6 +2155,101 @@ public class CheckpointCoordinatorTest extends TestLogger {
         } catch (Exception e) {
             e.printStackTrace();
             fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void testMaxCheckpointGap() {
+        try {
+            final long maxCheckpointGap = 1000;
+            JobVertexID jobVertexID1 = new JobVertexID();
+            ExecutionGraph graph =
+                    new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
+                            .addJobVertex(jobVertexID1)
+                            .build();
+            ExecutionVertex vertex1 = graph.getJobVertex(jobVertexID1).getTaskVertices()[0];
+
+            CheckpointCoordinatorConfiguration chkConfig =
+                    new CheckpointCoordinatorConfiguration
+                                    .CheckpointCoordinatorConfigurationBuilder()
+                            .setCheckpointInterval(100)
+                            .setMaxCheckpointGap(maxCheckpointGap)
+                            .setMinPauseBetweenCheckpoints(0L) // no extra delay
+                            .build();
+
+            ManualClock clock = new ManualClock();
+
+            String errorMsg = "The max gap from last checkpoint is exceeded.";
+            CheckpointCoordinator checkpointCoordinator =
+                    new CheckpointCoordinatorBuilder()
+                            .setExecutionGraph(graph)
+                            .setCheckpointCoordinatorConfiguration(chkConfig)
+                            .setCheckpointFailureManager(getCheckpointFailureManager(errorMsg))
+                            .setCompletedCheckpointStore(new StandaloneCompletedCheckpointStore(2))
+                            .setTimer(manuallyTriggeredScheduledExecutor)
+                            .setClock(clock)
+                            .build();
+
+            // first, trigger checkpoint once
+            final CompletableFuture<CompletedCheckpoint> checkpointFuture =
+                    checkpointCoordinator.triggerCheckpoint(false);
+            manuallyTriggeredScheduledExecutor.triggerAll();
+            FutureUtils.throwIfCompletedExceptionally(checkpointFuture);
+
+            // validate that we have a pending checkpoint
+            assertEquals(1, checkpointCoordinator.getNumberOfPendingCheckpoints());
+            assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+            assertEquals(1, manuallyTriggeredScheduledExecutor.getScheduledTasks().size());
+            long checkpointId =
+                    checkpointCoordinator
+                            .getPendingCheckpoints()
+                            .entrySet()
+                            .iterator()
+                            .next()
+                            .getKey();
+            PendingCheckpoint checkpoint =
+                    checkpointCoordinator.getPendingCheckpoints().get(checkpointId);
+            assertEquals(1, checkpoint.getNumberOfNonAcknowledgedTasks());
+            assertEquals(0, checkpoint.getNumberOfAcknowledgedTasks());
+            assertEquals(0, checkpoint.getOperatorStates().size());
+            OperatorID opID1 =
+                    vertex1.getJobVertex().getOperatorIDs().get(0).getGeneratedOperatorID();
+            ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
+
+            TaskStateSnapshot taskOperatorSubtaskStates1 = mock(TaskStateSnapshot.class);
+            OperatorSubtaskState subtaskState1 = mock(OperatorSubtaskState.class);
+            when(taskOperatorSubtaskStates1.getSubtaskStateByOperatorID(opID1))
+                    .thenReturn(subtaskState1);
+
+            AcknowledgeCheckpoint acknowledgeCheckpoint1 =
+                    new AcknowledgeCheckpoint(
+                            graph.getJobID(),
+                            attemptID1,
+                            checkpointId,
+                            new CheckpointMetrics(),
+                            taskOperatorSubtaskStates1);
+            checkpointCoordinator.receiveAcknowledgeMessage(
+                    acknowledgeCheckpoint1, TASK_MANAGER_LOCATION_INFO);
+            // the now we should have a completed checkpoint
+            assertEquals(1, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
+            assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
+
+            // second, we advance the clock and make the gap exceed the threshold
+            try {
+                clock.advanceTime(maxCheckpointGap + 2000, TimeUnit.MILLISECONDS);
+                manuallyTriggeredScheduledExecutor.triggerNonPeriodicScheduledTasks();
+
+                ScheduledFuture<?> checker = checkpointCoordinator.getCurrentCheckpointGapChecker();
+                assertNotNull(checker);
+                assertThrows(
+                        "java.lang.RuntimeException: " + errorMsg,
+                        ExecutionException.class,
+                        checker::get);
+            } finally {
+                checkpointCoordinator.shutdown();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
