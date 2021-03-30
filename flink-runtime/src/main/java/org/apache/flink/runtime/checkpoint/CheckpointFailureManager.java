@@ -133,6 +133,10 @@ public class CheckpointFailureManager {
             case UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE:
             case TRIGGER_CHECKPOINT_FAILURE:
             case FINALIZE_CHECKPOINT_FAILURE:
+
+                // The MAX_CHECKPOINT_GAP_EXCEEDED is handled by handleCheckpointGapExceeded, just
+                // ignore it
+            case MAX_CHECKPOINT_GAP_EXCEEDED:
                 // ignore
                 break;
 
