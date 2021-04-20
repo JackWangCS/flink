@@ -22,7 +22,9 @@ import org.junit.Test;
 
 import javax.security.auth.login.AppConfigurationEntry;
 
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link KerberosUtils}. */
 public class KerberosUtilsTest {
@@ -39,5 +41,22 @@ public class KerberosUtilsTest {
         String principal = "user";
         AppConfigurationEntry entry = KerberosUtils.keytabEntry(keytab, principal);
         assertNotNull(entry);
+    }
+
+    @Test
+    public void testCheckKeytabValid() {
+        String keytab = "user.keytab";
+        String principal = "user";
+
+        assertFalse(
+                "Keytab should be invalid if keytab does not exist.",
+                KerberosUtils.checkKeytabValid(principal, keytab));
+
+        // Test in local, disable it
+        if (false) {
+            keytab = "/tmp/bdi-prod.keytab";
+            principal = "bdi.prod";
+            assertTrue(KerberosUtils.checkKeytabValid(principal, keytab));
+        }
     }
 }

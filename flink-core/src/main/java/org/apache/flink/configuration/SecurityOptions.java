@@ -20,7 +20,9 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -82,6 +84,26 @@ public class SecurityOptions {
                     .withDeprecatedKeys("security.keytab")
                     .withDescription(
                             "Absolute path to a Kerberos keytab file that contains the user credentials.");
+
+    public static final ConfigOption<String> KERBEROS_KEYTAB_UPDATE_PATH =
+            key("security.kerberos.login.keytab-update-path")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "A HDFS directory path to store keytab files. If defined, Flink will check this directory periodically "
+                                    + "and update the current keytab using keytab files in this directory. "
+                                    + "Note, this directory should be private, and only be accessed from the job user.");
+
+    public static final ConfigOption<Duration> KERBEROS_KEYTAB_UPDATE_INTERVAL =
+            key("security.kerberos.login.keytab-update-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(30))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The interval to check %s",
+                                            TextElement.code(KERBEROS_KEYTAB_UPDATE_PATH.key()))
+                                    .build());
 
     public static final ConfigOption<String> KERBEROS_KRB5_PATH =
             key("security.kerberos.krb5-conf.path")

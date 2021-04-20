@@ -54,6 +54,10 @@ public class SecurityConfiguration {
 
     private final String principal;
 
+    private final String keytabUpdatePath;
+
+    private long keytabUpdateInterval;
+
     private final List<String> loginContextNames;
 
     private final String zkServiceName;
@@ -84,6 +88,10 @@ public class SecurityConfiguration {
             List<String> securityModuleFactories) {
         this.isZkSaslDisable = flinkConf.getBoolean(SecurityOptions.ZOOKEEPER_SASL_DISABLE);
         this.keytab = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_KEYTAB);
+        this.keytabUpdatePath = flinkConf.getString(SecurityOptions.KERBEROS_KEYTAB_UPDATE_PATH);
+        flinkConf
+                .getOptional(SecurityOptions.KERBEROS_KEYTAB_UPDATE_INTERVAL)
+                .ifPresent(t -> this.keytabUpdateInterval = t.toMillis());
         this.principal = flinkConf.getString(SecurityOptions.KERBEROS_LOGIN_PRINCIPAL);
         this.useTicketCache = flinkConf.getBoolean(SecurityOptions.KERBEROS_LOGIN_USETICKETCACHE);
         this.loginContextNames =
@@ -103,6 +111,14 @@ public class SecurityConfiguration {
 
     public String getKeytab() {
         return keytab;
+    }
+
+    public String getKeytabUpdatePath() {
+        return keytabUpdatePath;
+    }
+
+    public long getKeytabUpdateInterval() {
+        return keytabUpdateInterval;
     }
 
     public String getPrincipal() {
@@ -157,6 +173,23 @@ public class SecurityConfiguration {
                         "Kerberos login configuration is invalid: keytab ["
                                 + keytab
                                 + "] is unreadable!");
+            }
+
+            if (!StringUtils.isBlank(keytabUpdatePath)) {
+                if (!keytabUpdatePath.startsWith("viewfs")
+                        || !keytabUpdatePath.startsWith("hdfs")) {
+                    throw new IllegalConfigurationException(
+                            "Kerberos login configuration is invalid: keytab update path ["
+                                    + keytabUpdatePath
+                                    + "] is not a hdfs path!");
+                }
+
+                if (keytabUpdateInterval <= 0) {
+                    throw new IllegalConfigurationException(
+                            "Kerberos login configuration is invalid: keytab update interval ["
+                                    + keytabUpdateInterval
+                                    + "] should be greater than 0!");
+                }
             }
         }
     }

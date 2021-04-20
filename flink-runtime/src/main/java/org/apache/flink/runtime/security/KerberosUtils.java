@@ -23,9 +23,15 @@ import org.apache.flink.annotation.Internal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosPrincipal;
 import javax.security.auth.login.AppConfigurationEntry;
+import javax.security.auth.login.Configuration;
+import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -128,5 +134,39 @@ public class KerberosUtils {
     private static String prependFileUri(String keytabPath) {
         File f = new File(keytabPath);
         return f.toURI().toString();
+    }
+
+    /** Check whether a keytab is valid. */
+    public static boolean checkKeytabValid(String principal, String keytabLocation) {
+        boolean valid = false;
+        try {
+            tryLogin(principal, keytabLocation);
+            valid = true;
+        } catch (LoginException e) {
+            LOG.debug("keytab {} for principal {} is invalid: {}", keytabLocation, principal, e);
+        }
+        return valid;
+    }
+
+    private static Subject tryLogin(String principal, String keytabLocation) throws LoginException {
+        KerberosPrincipal kerberosPrincipal = new KerberosPrincipal(principal);
+        Subject subject =
+                new Subject(
+                        false,
+                        Collections.singleton(kerberosPrincipal),
+                        Collections.emptySet(),
+                        Collections.emptySet());
+        AppConfigurationEntry appConfigurationEntry = keytabEntry(keytabLocation, principal);
+        Configuration configuration =
+                new Configuration() {
+                    @Override
+                    public AppConfigurationEntry[] getAppConfigurationEntry(String name) {
+                        return new AppConfigurationEntry[] {appConfigurationEntry};
+                    }
+                };
+        LoginContext loginContext =
+                new LoginContext("keytab-checker", subject, null, configuration);
+        loginContext.login();
+        return loginContext.getSubject();
     }
 }
