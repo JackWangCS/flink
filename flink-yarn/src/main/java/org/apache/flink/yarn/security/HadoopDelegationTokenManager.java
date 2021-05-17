@@ -77,6 +77,9 @@ public class HadoopDelegationTokenManager {
                 provider -> {
                     try {
                         provider.init(hadoopDelegationTokenConf);
+                        LOG.info(
+                                "Delegation provider {} loaded and initialized",
+                                provider.serviceName());
                     } catch (Throwable throwable) {
                         LOG.info(
                                 "Failed to initialize delegation provider {}, exception: {}",

@@ -205,10 +205,12 @@ public final class Utils {
         final boolean fetchToken =
                 flinkConf.getBoolean(SecurityOptions.KERBEROS_FETCH_DELEGATION_TOKEN);
         if (fetchToken) {
-            LOG.info("Obtaining delegation tokens...");
             // obtain tokens from HadoopDelegationTokenProviders
+            LOG.info("Obtaining delegation tokens...");
+            HadoopDelegationTokenConfiguration conf =
+                    new HadoopDelegationTokenConfiguration(flinkConf, hadoopConf);
             HadoopDelegationTokenManager delegationTokenManager =
-                    new HadoopDelegationTokenManager(flinkConf, hadoopConf);
+                    new HadoopDelegationTokenManager(conf);
             delegationTokenManager.obtainDelegationTokens(credentials);
         } else {
             LOG.info("Delegation token retrieval is disabled.");
